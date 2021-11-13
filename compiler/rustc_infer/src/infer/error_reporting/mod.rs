@@ -1670,6 +1670,7 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
         debug!("exp_found {:?} terr {:?}", exp_found, terr);
         if let Some(exp_found) = exp_found {
             self.suggest_as_ref_where_appropriate(span, &exp_found, diag);
+            self.suggest_is_some_where_appropriate(span, &exp_found, diag);
             self.suggest_accessing_field_where_appropriate(cause, &exp_found, diag);
             self.suggest_await_on_expect_found(cause, span, &exp_found, diag);
         }
@@ -1872,6 +1873,51 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
                         );
                     }
                 }
+            }
+        }
+    }
+
+    fn suggest_is_some_where_appropriate(
+        &self,
+        span: Span,
+        exp_found: &ty::error::ExpectedFound<Ty<'tcx>>,
+        diag: &mut DiagnosticBuilder<'tcx>,
+    ) {
+        if let ty::Bool = exp_found.expected.kind() {
+            let optionals = &[
+                "std::option::Option",
+                "core::option::Option",
+            ];
+
+            let mut show_suggestion = false;
+            if let ty::Adt(found_def, _) = exp_found.found.kind() {
+                let path_str = format!("{:?}", found_def);
+                show_suggestion = optionals.iter().any(|path| (&path_str == path));
+            }
+            else if let ty::Ref(_, found_ty, _) = exp_found.found.kind() {
+                if let ty::Adt(found_def, _) = *found_ty.kind() {
+                    let path_str = format!("{:?}", found_def);
+                    show_suggestion = optionals.iter().any(|path| (&path_str == path));
+                }
+            }
+
+            if let (Ok(snippet), true) =
+                (self.tcx.sess.source_map().span_to_snippet(span), show_suggestion)
+            {
+                diag.span_suggestion(
+                    span,
+                    "you can check if an `Option<T>` holds a value using `.is_some()`",
+                    format!("{}.is_some()", snippet),
+                    Applicability::MaybeIncorrect,
+                );
+
+                // FIXME: only emit this if the mismatch occured in the context of an if condition
+                diag.span_suggestion(
+                    span,
+                    "you can check if an `Option<T>` holds a value and fetch that value using `let Some(...)`",
+                    format!("let Some(...) = {}", snippet),
+                    Applicability::HasPlaceholders,
+                );
             }
         }
     }
