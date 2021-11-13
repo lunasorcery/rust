@@ -1906,7 +1906,7 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
             {
                 diag.span_suggestion(
                     span,
-                    "you can check if an `Option<T>` holds a value using `.is_some()`",
+                    "you can check if an `Option<T>` is a `Some` value using `.is_some()`",
                     format!("{}.is_some()", snippet),
                     Applicability::MaybeIncorrect,
                 );
@@ -1914,7 +1914,7 @@ impl<'a, 'tcx> InferCtxt<'a, 'tcx> {
                 // FIXME: only emit this if the mismatch occured in the context of an if condition
                 diag.span_suggestion(
                     span,
-                    "you can check if an `Option<T>` holds a value and fetch that value using `let Some(...)`",
+                    "you can retrieve the `Some(T)` value of an `Option<T>` using `let Some(...) = `",
                     format!("let Some(...) = {}", snippet),
                     Applicability::HasPlaceholders,
                 );
